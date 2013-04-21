@@ -1,5 +1,5 @@
 import os
-from test_configuration import NoseSeleniumBase
+from test_configuration import NoseSeleniumBase, ConfigurationErrorBase
 from unittest2 import TestCase, TestSuite, skipUnless
 from nose_selenium import SeleniumTestCase
 
@@ -65,3 +65,43 @@ class TestSauceLinuxOpera(FunctionalityBase):
         '--os=Linux',
     ]
     env = os.environ
+
+
+########### server not responding test cases #6 ###############
+# class TestSauceInvalidCreds(ConfigurationErrorBase):
+#     args = [
+#         '--browser-location=sauce',
+#         '--browser=chrome',
+#         '--browser-version=',
+#         '--os=Linux',
+#         '--sauce-username=foo',
+#         '--sauce-apikey=bar',
+#     ]
+#
+#     @property
+#     def expected_error(self):
+#         return "Error authenticating to Sauce Labs."
+#
+# class TestRemoteNotResponding(ConfigurationErrorBase):
+#     args = [
+#         '--browser-location=remote',
+#         '--browser=FIREFOX',
+#         '--remote-address=192.167.0.106',
+#     ]
+#
+#     @property
+#     def expected_error(self):
+#         return "Error connecting to remote selenium server."
+#
+#
+# class TestGridNotResponding(ConfigurationErrorBase):
+#     args = [
+#         '--browser-location=grid',
+#         '--browser=FIREFOX',
+#         '--grid-address=192.167.0.106',
+#         '--os=windows',
+#     ]
+#
+#     @property
+#     def expected_error(self):
+#         return "Error connecting to selenium grid server."

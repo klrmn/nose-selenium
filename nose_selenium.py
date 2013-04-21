@@ -4,6 +4,8 @@ from json import dumps, loads
 from nose.plugins import Plugin
 from selenium import webdriver
 from unittest2 import TestCase
+from exceptions import TypeError #  , Exception
+#from urllib2 import URLError
 
 import logging
 logger = logging.getLogger(__name__)
@@ -145,7 +147,7 @@ class NoseSelenium(Plugin):
 
     def _check_validity(self, item, list, flag="--browser"):
         if item not in list:
-            raise Exception(
+            raise TypeError(
                 "%s not in available options for %s: %s" %
                 (item, flag, ", ".join(list))
             )
@@ -196,10 +198,11 @@ class NoseSelenium(Plugin):
 
             valid_browsers_for_remote = [attr for attr in dir(webdriver.DesiredCapabilities) if not attr.startswith('__')]
             valid_browsers_for_local = ['FIREFOX', 'INTERNETEXPLORER', 'CHROME']
-            valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
 
             # browser-help is a usage call
             if getattr(options, 'browser_help'):
+
+                valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
 
                 print("")
                 print("Local Browsers:")
@@ -216,7 +219,7 @@ class NoseSelenium(Plugin):
                 print("-------------------------------------------------------")
                 print("\t\t".join(['OS', 'BROWSER', 'BROWSER_VERSION']))
                 print("\n".join(combos))
-                exit()
+                exit(0)
 
             BROWSER_LOCATION = options.browser_location
             BROWSER = options.browser
@@ -230,14 +233,16 @@ class NoseSelenium(Plugin):
 
             # sauce
             elif BROWSER_LOCATION == 'sauce':
+                valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
+
                 SAUCE_USERNAME = options.sauce_username
                 SAUCE_APIKEY = options.sauce_apikey
                 if not SAUCE_USERNAME or not SAUCE_APIKEY:
-                    raise Exception("'sauce' value for --browser-location "
+                    raise TypeError("'sauce' value for --browser-location "
                                     "requires --sauce-username and --sauce-apikey.")
                 self._check_validity(BROWSER, valid_browsers_for_sauce)
                 if not OS:
-                    raise Exception(
+                    raise TypeError(
                         "'sauce' value for --browser-location requires the --os option.")
                 self._check_validity(OS, valid_oses_for_sauce, flag="--os")
 
@@ -247,7 +252,7 @@ class NoseSelenium(Plugin):
                 REMOTE_ADDRESS = options.remote_address
                 self._check_validity(BROWSER, valid_browsers_for_remote)
                 if not REMOTE_ADDRESS:
-                    raise Exception(
+                    raise TypeError(
                         "'remote' value for --browser-location requires --remote-address.")
 
             # grid
@@ -256,10 +261,10 @@ class NoseSelenium(Plugin):
                 REMOTE_ADDRESS = options.grid_address
                 self._check_validity(BROWSER, valid_browsers_for_remote)
                 if not REMOTE_ADDRESS:
-                    raise Exception(
+                    raise TypeError(
                         "'grid' value for --browser-location requires --grid-address.")
                 if not OS:
-                    raise Exception(
+                    raise TypeError(
                         "'grid' value for --browser-location requires the --os option.")
                 # XXX validate OS once grid API can answer the question which it supports
 
@@ -291,22 +296,34 @@ def build_webdriver(name="", tags=[], public=False):
         elif BROWSER == 'INTERNETEXPLORER':
             wd = webdriver.Ie()
         else:
-            raise Exception(
+            raise TypeError(
                 'WebDriver does not have a driver for local %s' % BROWSER)
 
     elif BROWSER_LOCATION == 'remote':
         capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
+        # try:
         wd = webdriver.Remote(command_executor=executor,
                               desired_capabilities=capabilities)
+        # except URLError:
+        #     # print(" caught URLError ",)
+        #     raise Exception(
+        #         "Remote selenium server at %s:%s is not responding."
+        #         % (REMOTE_ADDRESS, REMOTE_PORT))
 
     elif BROWSER_LOCATION == 'grid':
         capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         capabilities['version'] = BROWSER_VERSION
         capabilities['platform'] = OS.upper()
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
+        # try:
         wd = webdriver.Remote(command_executor=executor,
                               desired_capabilities=capabilities)
+        # except URLError:
+        #     # print(" caught URLError ",)
+        #     raise Exception(
+        #         "Selenium grid server at %s:%s is not responding."
+        #         % (REMOTE_ADDRESS, REMOTE_PORT))
 
     elif BROWSER_LOCATION == 'sauce':
         capabilities = {
