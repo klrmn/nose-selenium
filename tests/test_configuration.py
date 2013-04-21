@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class NoseSeleniumConfigurationBase(PluginTester, TestCase):
+class NoseSeleniumBase(PluginTester, TestCase):
     activate = '--with-nose-selenium' # enables the plugin
     plugins = [NoseSelenium()]
 
@@ -18,7 +18,7 @@ class NoseSeleniumConfigurationBase(PluginTester, TestCase):
         return TestSuite([TC()])
 
 
-class ConfigurationErrorBase(NoseSeleniumConfigurationBase):
+class ConfigurationErrorBase(NoseSeleniumBase):
 
     def setUp(self):
         self.error = None
@@ -32,7 +32,7 @@ class ConfigurationErrorBase(NoseSeleniumConfigurationBase):
         """Implement this in the child test classes."""
         raise NotImplementedError
 
-    def test_error_in_output(self):
+    def test_error_raised(self):
         if self.__class__.__name__ == 'ConfigurationErrorBase':
             return  # abstract
         self.assertIn(self.expected_error, self.error.message)
@@ -40,17 +40,17 @@ class ConfigurationErrorBase(NoseSeleniumConfigurationBase):
 
 ################################ grid ############################
 
-class TestGridRequiresBrowserVersion(ConfigurationErrorBase):
-    args = [
-        '--browser-location=grid',
-        '--os=windows',
-        '--grid-address=localhost',
-    ]
-
-    @property
-    def expected_error(self):
-        return ("'grid' and 'sauce' values for --browser-location " +
-                "require --os and --browser-version options.")
+# class TestGridRequiresBrowserVersion(ConfigurationErrorBase):
+#     args = [
+#         '--browser-location=grid',
+#         '--os=windows',
+#         '--grid-address=localhost',
+#     ]
+#
+#     @property
+#     def expected_error(self):
+#         return ("'grid' and 'sauce' values for --browser-location " +
+#                 "require the --browser-version option.")
 
 
 class TestGridRequiresOS(ConfigurationErrorBase):
@@ -63,7 +63,7 @@ class TestGridRequiresOS(ConfigurationErrorBase):
     @property
     def expected_error(self):
         return ("'grid' and 'sauce' values for --browser-location " +
-                "require --os and --browser-version options.")
+                "require the --os option.")
 
 
 class TestGridRequiresGridAddress(ConfigurationErrorBase):
@@ -96,18 +96,32 @@ class TestRemoteRequiresRemoteAddress(ConfigurationErrorBase):
 
 ##################### sauce #####################################
 
-class TestSauceRequiresBrowserVersion(ConfigurationErrorBase):
+# class TestSauceRequiresBrowserVersion(ConfigurationErrorBase):
+#     args = [
+#         '--browser-location=sauce',
+#         '--os=windows',
+#         '--sauce-username=foo',
+#         '--sauce-apikey=bar',
+#     ]
+#
+#     @property
+#     def expected_error(self):
+#         return ("'grid' and 'sauce' values for --browser-location " +
+#                 "require the --browser-version option.")
+
+
+class TestSauceRequiresOS(ConfigurationErrorBase):
     args = [
         '--browser-location=sauce',
-        '--os=windows',
+        '--browser-version=10',
         '--sauce-username=foo',
         '--sauce-apikey=bar',
-    ]
+        ]
 
     @property
     def expected_error(self):
         return ("'grid' and 'sauce' values for --browser-location " +
-                "require --os and --browser-version options.")
+                "require the --os option.")
 
 
 class TestSauceRequiresUsername(ConfigurationErrorBase):
@@ -140,7 +154,7 @@ class TestSauceRequiresApikey(ConfigurationErrorBase):
 
 #################### General ##########################
 
-class TestInvalidOption(NoseSeleniumConfigurationBase):
+class TestInvalidOption(NoseSeleniumBase):
 
     @property
     def expected_error(self):

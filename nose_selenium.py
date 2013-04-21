@@ -41,7 +41,7 @@ class NoseSelenium(Plugin):
         parser.add_option('--browser',
                           action='store',
                           choices=valid_browsers,
-                          default=env.get('SELENIUM_BROWSER', ['firefox']),
+                          default=env.get('SELENIUM_BROWSER', ['FIREFOX']),
                           metavar='[local|grid|sauce]',
                           dest='browser',
                           help='Run this type of browser (default %default)'
@@ -55,14 +55,14 @@ class NoseSelenium(Plugin):
         parser.add_option('--browser-version',
                           action='store',
                           type='str',
-                          default=None,
+                          default="",
                           dest='browser_version',
                           help='Run this version of the browser. (required for grid or sauce)')
         valid_oses = ['windows', 'mac', 'linux']
         parser.add_option('--os',
                           action='store',
                           dest='os',
-                          default='linux',
+                          default=None,
                           choices=valid_oses,
                           help='Run the browser on this operating system. (default: %default, required for grid or sauce)')
         parser.add_option('--grid-address',
@@ -81,7 +81,7 @@ class NoseSelenium(Plugin):
         parser.add_option('--remote-address',
                           action='store',
                           dest='remote_address',
-                          default=None,
+                          default=env.get('REMOTE_SELENIUM_ADDRESS', []),
                           metavar='str',
                           help='host that selenium server is listening on.')
         parser.add_option('--remote-port',
@@ -137,12 +137,13 @@ class NoseSelenium(Plugin):
             BASE_URL = options.base_url
             TIMEOUT = options.timeout
             BUILD = options.build
-            if options.browser_location in ['grid', 'sauce']:
-                BROWSER_VERSION = options.browser_version
-                OS = options.os
-                if not BROWSER_VERSION or not OS:
-                    raise Exception("'grid' and 'sauce' values for --browser-location "
-                        "require --os and --browser-version options.")
+            # # so long as chrome is always empty for latest, we can't
+            # # validate browser version
+            # if options.browser_location in ['grid', 'sauce']:
+            #     BROWSER_VERSION = options.browser_version
+            #     if BROWSER_VERSION == None:
+            #         raise Exception("'grid' and 'sauce' values for --browser-location "
+            #             "require the --browser-version option.")
             if options.browser_location in ['grid', 'remote']:
                 REMOTE_ADDRESS = options.grid_address or options.remote_address
                 REMOTE_PORT = options.grid_port or options.remote_port
@@ -155,6 +156,11 @@ class NoseSelenium(Plugin):
                 if not SAUCE_USERNAME or not SAUCE_APIKEY:
                     raise Exception("'sauce' value for --browser-location "
                         "requires --sauce-username and --sauce-apikey.")
+            if options.browser_location in ['grid', 'sauce']:
+                OS = options.os
+                if not OS:
+                    raise Exception("'grid' and 'sauce' values for --browser-location " +
+                        "require the --os option.")
 
 
     # def finalize(self, result):
@@ -175,10 +181,20 @@ def build_webdriver(name="", tags=[], public=False):
     global SAUCE_USERNAME
     global SAUCE_APIKEY
 
-    if BROWSER_LOCATION == 'local':
-        wd = getattr(webdriver, BROWSER)()
+    wd = None
 
-    elif BROWSER_VERSION == 'remote':
+    if BROWSER_LOCATION == 'local':
+        if BROWSER == 'FIREFOX':
+            wd = webdriver.Firefox()
+        elif BROWSER == 'CHROME':
+            wd = webdriver.Chrome()
+        elif BROWSER == 'INTERNETEXPLORER':
+            wd = webdriver.Ie()
+        else:
+            raise Exception(
+                'WebDriver does not have a driver for local %s' % BROWSER)
+
+    elif BROWSER_LOCATION == 'remote':
         capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
         wd = webdriver.Remote(command_executor=executor,
@@ -209,5 +225,5 @@ def build_webdriver(name="", tags=[], public=False):
 
     wd.implicitly_wait(TIMEOUT * 1000)  # translate sec to ms
     # sometimes what goes out != what goes in, so log it
-    logger.info(wd.capabilities)
+    logger.info("actual capabilities: %s" % wd.capabilities)
     return wd
