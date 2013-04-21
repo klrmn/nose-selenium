@@ -1,5 +1,5 @@
 nose-selenium
-=============
+*************
 
 A Selenium WebDriver plugin for nose.
 
@@ -9,6 +9,9 @@ this work first for py.test in
 
 Currently, this plugin deals only with input parameters, and does not
 modify the results reporting in any way.
+
+nosetests command line options
+==============================
 
 .. code-block:: bash
 
@@ -59,19 +62,25 @@ modify the results reporting in any way.
       --sauce-apikey=str    API Key for sauce labs account. May be stored in
                             environmental variable SAUCE_APIKEY.
 
-** Example Commands **
+Example Commands
+----------------
 
 .. code-block:: bash
 
     $ nosetests --with-nose-selenium --browser-location=local --browser=FIREFOX
     $ nosetests --with-nose-selenium --browser-location=grid --grid-address=192.168.0.11 --os=linux --browser=CHROME
     $ nosetests --with-nose-selenium --browser-location=remote --remote-address=192.168.0.107 --browser=HTMLUNIT
-    $ nosetests --with-nose-selenium --browser-location=sauce --os=windows --browser=INTERNETEXPLORER
+    $ nosetests --with-nose-selenium --browser-location=sauce --os=windows --browser=INTERNETEXPLORER --sauce-username=<name> --sauce-apikey=<api_key>
 
-** Inheriting from SeleniumTestCase **
+
+Writing test scripts with nose-selenium
+=======================================
+
+Inheriting from SeleniumTestCase
+--------------------------------
 
 SeleniumTestCase creates the webdriver and stores it in self.wd in its setUp()
-and closes it in teearDown().
+and closes it in tearDown().
 
 .. code-block:: python
 
@@ -85,11 +94,12 @@ and closes it in teearDown().
             self.assertEqual(self.wd.title, "Google")
 
 
-** Using build_webdriver in your test scripts **
+Using build_webdriver in your test scripts
+------------------------------------------
 
 If you're not using test classes, you may use build_webdriver
 in the following manner. Its extra arguments are used to attach
-metadata to SauceLabs jobs, and ignored if the browser is not being
+metadata to SauceLabs jobs and ignored if the browser is not being
 opened on SauceLabs.
 
 .. code-block:: python
@@ -104,7 +114,7 @@ opened on SauceLabs.
 
 
 Bugs and Feature Requests
--------------------------
+=========================
 
 I am aware that this plugin represents a minimal set of features. If there is
 something in particular you would like me to add, please check the
