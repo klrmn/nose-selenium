@@ -1,7 +1,7 @@
 import os
 from test_configuration import NoseSeleniumBase
 from unittest2 import TestCase, TestSuite, skipUnless
-from nose_selenium import build_webdriver
+from nose_selenium import SeleniumTestCase
 
 import logging
 logger = logging.getLogger(__name__)
@@ -9,13 +9,7 @@ logger = logging.getLogger(__name__)
 class FunctionalityBase(NoseSeleniumBase):
 
     def makeSuite(self):
-        class TC(TestCase):
-
-            def setUp(self):
-                self.wd = build_webdriver()
-
-            def tearDown(self):
-                self.wd.quit()
+        class TC(SeleniumTestCase):
 
             def runTest(self):
                 self.wd.get("http://google.com")
