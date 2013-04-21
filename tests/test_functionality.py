@@ -24,8 +24,6 @@ class FunctionalityBase(NoseSeleniumBase):
         for line in self.output:
             line = line.rstrip()
 
-        logger.debug("output: %s" % self.output)
-        logger.debug("environ: %s" % os.environ)
         self.assertTrue('Ran 1 test' in self.output)
         self.assertTrue('OK' in self.output)
 
@@ -62,8 +60,8 @@ class TestSauceLinuxOpera(FunctionalityBase):
     are set in the testrunner's env."""
     args = [
         '--browser-location=sauce',
-        '--browser=CHROME',
+        '--browser=chrome',
         '--browser-version=',  # chrome always runs latest
-        '--os=linux',
+        '--os=Linux',
     ]
     env = os.environ

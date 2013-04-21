@@ -38,45 +38,62 @@ class ConfigurationErrorBase(NoseSeleniumBase):
         self.assertIn(self.expected_error, self.error.message)
 
 
+############################# local ##############################
+
+
+class TestLocalInvalidBrowser(ConfigurationErrorBase):
+    args = [
+        '--browser-location=local',
+        '--browser=HTMLUNIT',
+        ]
+
+    @property
+    def expected_error(self):
+        return "HTMLUNIT not in available options for --browser:"
+
+
 ################################ grid ############################
 
-# class TestGridRequiresBrowserVersion(ConfigurationErrorBase):
-#     args = [
-#         '--browser-location=grid',
-#         '--os=windows',
-#         '--grid-address=localhost',
-#     ]
-#
-#     @property
-#     def expected_error(self):
-#         return ("'grid' and 'sauce' values for --browser-location " +
-#                 "require the --browser-version option.")
+# cannot usefully test for browser version
 
 
 class TestGridRequiresOS(ConfigurationErrorBase):
     args = [
         '--browser-location=grid',
+        '--browser=FIREFOX',
         '--browser-version=10',
         '--grid-address=localhost',
     ]
 
     @property
     def expected_error(self):
-        return ("'grid' and 'sauce' values for --browser-location " +
-                "require the --os option.")
+        return ("'grid' value for --browser-location requires the --os option.")
 
 
 class TestGridRequiresGridAddress(ConfigurationErrorBase):
     args = [
         '--browser-location=grid',
+        '--browser=FIREFOX',
         '--os=windows',
         '--browser-version=10',
         ]
 
     @property
     def expected_error(self):
-        return ("'grid' and 'remote' values for --browser-location " +
-                "require --grid-address or --remote-address, respectively.")
+        return ("'grid' value for --browser-location requires --grid-address.")
+
+
+class TestGridInvalidBrowser(ConfigurationErrorBase):
+    args = [
+        '--browser-location=grid',
+        '--browser=iceweasel',
+        '--grid-address=192.168.0.107',
+        '--os=windows',
+        ]
+
+    @property
+    def expected_error(self):
+        return "iceweasel not in available options for --browser:"
 
 
 #################### remote #####################################
@@ -84,35 +101,52 @@ class TestGridRequiresGridAddress(ConfigurationErrorBase):
 class TestRemoteRequiresRemoteAddress(ConfigurationErrorBase):
     args = [
         '--browser-location=remote',
+        '--browser=SAFARI',
         '--os=windows',
         '--browser-version=10',
         ]
 
     @property
     def expected_error(self):
-        return ("'grid' and 'remote' values for --browser-location " +
-                "require --grid-address or --remote-address, respectively.")
+        return ("'remote' value for --browser-location requires --remote-address.")
+
+
+class TestRemoteInvalidBrowser(ConfigurationErrorBase):
+    args = [
+        '--browser-location=remote',
+        '--browser=iceweasel',
+        '--remote-address=192.168.0.107',
+    ]
+
+    @property
+    def expected_error(self):
+        return "iceweasel not in available options for --browser:"
 
 
 ##################### sauce #####################################
 
-# class TestSauceRequiresBrowserVersion(ConfigurationErrorBase):
-#     args = [
-#         '--browser-location=sauce',
-#         '--os=windows',
-#         '--sauce-username=foo',
-#         '--sauce-apikey=bar',
-#     ]
-#
-#     @property
-#     def expected_error(self):
-#         return ("'grid' and 'sauce' values for --browser-location " +
-#                 "require the --browser-version option.")
+# cannot usefully test for browser version
+
+
+class TestSauceInvalidBrowser(ConfigurationErrorBase):
+    args = [
+        '--browser-location=sauce',
+        '--browser=iceweasel',
+        '--browser-version=3.4',
+        '--os=Linux',
+        '--sauce-username=foo',
+        '--sauce-apikey=bar',
+    ]
+
+    @property
+    def expected_error(self):
+        return "iceweasel not in available options for --browser:"
 
 
 class TestSauceRequiresOS(ConfigurationErrorBase):
     args = [
         '--browser-location=sauce',
+        '--browser=firefox',
         '--browser-version=10',
         '--sauce-username=foo',
         '--sauce-apikey=bar',
@@ -120,8 +154,7 @@ class TestSauceRequiresOS(ConfigurationErrorBase):
 
     @property
     def expected_error(self):
-        return ("'grid' and 'sauce' values for --browser-location " +
-                "require the --os option.")
+        return ("'sauce' value for --browser-location requires the --os option.")
 
 
 class TestSauceRequiresUsername(ConfigurationErrorBase):
@@ -154,32 +187,13 @@ class TestSauceRequiresApikey(ConfigurationErrorBase):
 
 #################### General ##########################
 
-class TestInvalidOption(NoseSeleniumBase):
+
+class TestBrowserHelp(ConfigurationErrorBase):
+
+    args = [
+        '--browser-help',
+        ]
 
     @property
     def expected_error(self):
-        """Implement this in the child test classes."""
-        raise NotImplementedError
-
-    def test_error_in_output(self):
-        if self.__class__.__name__ == 'TestInvalidOption':
-            return  # abstract
-        logger.debug(dir(self.output))
-        logger.debug(dir(self.output.stream))
-        logger.debug(dir(self.output.stream.buffer))
-        self.assertIn(self.expected_error, self.output.stream)
-
-class TestInvalidBrowserOption(TestInvalidOption):
-    args = [ '--browser=iceweasel', ]  # debian version of firefox
-
-    @property
-    def expected_error(self):
-        return ("error: option --browser: invalid choice: 'iceweasel'")
-
-
-class TestInvalidOSOption(TestInvalidOption):
-    args = [ '--os=palm', ]  # chances of future support: nil
-
-    @property
-    def expected_error(self):
-        return ("error: option --os: invalid choice: 'palm'")
+        return "Sauce Labs OS - Browser - Browser Version combinations:"

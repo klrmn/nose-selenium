@@ -1,4 +1,6 @@
 import os
+import requests
+from json import dumps, loads
 from nose.plugins import Plugin
 from selenium import webdriver
 from unittest2 import TestCase
@@ -45,18 +47,18 @@ class NoseSelenium(Plugin):
                                 self._stingify_options(valid_location_options) +
                                 "). May be stored in environmental variable SELENIUM_BROWSER_LOCATION."
         )
-        valid_browsers = [attr for attr in dir(webdriver.DesiredCapabilities) if not attr.startswith('__')]
-        valid_browsers_for_local = ['FIREFOX', 'INTERNETEXPLORER', 'CHROME']
         parser.add_option('--browser',
                           action='store',
-                          choices=valid_browsers,
                           default=env.get('SELENIUM_BROWSER', ['FIREFOX']),
                           dest='browser',
-                          help="Run this type of browser (default %default, options for local " +
-                               self._stingify_options(valid_browsers_for_local) +
-                               ", options for remote/grid/sauce " +
-                               self._stingify_options(valid_browsers) +
-                               "). May be stored in environmental variable SELENIUM_BROWSER."
+                          help="Run this type of browser (default %default). " +
+                               "run --browser-help for a list of what browsers are available. " +
+                               "May be stored in environmental variable SELENIUM_BROWSER."
+        )
+        parser.add_option('--browser-help',
+                          action='store_true',
+                          dest='browser_help',
+                          help="Get a list of what OS, BROWSER, and BROWSER_VERSION combinations are available."
         )
         parser.add_option('--build',
                          action='store',
@@ -74,16 +76,12 @@ class NoseSelenium(Plugin):
                           help='Run this version of the browser. ' +
                                '(default: %default implies latest.)'
         )
-        valid_oses = ['windows', 'mac', 'linux']
         parser.add_option('--os',
                           action='store',
                           dest='os',
                           default=None,
-                          choices=valid_oses,
                           help="Run the browser on this operating system. " +
-                               "(default: %default, options " +
-                               self._stingify_options(valid_oses) +
-                               ", required for grid or sauce)"
+                               "(default: %default, required for grid or sauce)"
         )
         parser.add_option('--grid-address',
                          action='store',
@@ -145,6 +143,40 @@ class NoseSelenium(Plugin):
                               'May be stored in environmental variable SAUCE_APIKEY.'
         )
 
+    def _check_validity(self, item, list, flag="--browser"):
+        if item not in list:
+            raise Exception(
+                "%s not in available options for %s: %s" %
+                (item, flag, ", ".join(list))
+            )
+
+    def _get_sauce_options(self):
+        # output from sauce labs
+        # {
+        #     "api_name": "firefox",
+        #     "automation_backend": "webdriver",
+        #     "long_name": "Firefox",
+        #     "long_version": "19.0.",
+        #     "os": "Linux",
+        #     "preferred_version": "11",
+        #     "scout": "webdriver",
+        #     "short_version": "19"
+        # },
+
+        uri = 'http://saucelabs.com/rest/v1/info/browsers/webdriver'
+        resp = loads(
+            requests.get(uri, headers={ 'accepts': 'application/json'}).text)
+        browser_hash = {}
+        os_hash = {}
+        combos = []
+        for entry in resp:
+            browser_hash.update({entry['api_name']: 1})
+            os_hash.update({entry['os']: 1})
+            combos.append("\t\t".join(
+                [ entry['os'], entry['api_name'], entry['short_version']]))
+        browsers = browser_hash.keys()
+        oses = set(entry['os'] for entry in resp)
+        return (browsers, oses, combos)
 
     def configure(self, options, conf):
         global BROWSER_LOCATION
@@ -160,34 +192,76 @@ class NoseSelenium(Plugin):
 
         Plugin.configure(self, options, conf)
         if self.enabled:
+
+
+            valid_browsers_for_remote = [attr for attr in dir(webdriver.DesiredCapabilities) if not attr.startswith('__')]
+            valid_browsers_for_local = ['FIREFOX', 'INTERNETEXPLORER', 'CHROME']
+            valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
+
+            # browser-help is a usage call
+            if getattr(options, 'browser_help'):
+
+                print("")
+                print("Local Browsers:")
+                print("---------------")
+                print("\n".join(valid_browsers_for_local))
+                print("")
+                print("Potential Remote / Grid Browsers:")
+                print("---------------------------------")
+                print("\n".join(valid_browsers_for_remote))
+                print("")
+                print("Note: not all browsers available on all grids.")
+                print("")
+                print("Sauce Labs OS - Browser - Browser Version combinations:")
+                print("-------------------------------------------------------")
+                print("\t\t".join(['OS', 'BROWSER', 'BROWSER_VERSION']))
+                print("\n".join(combos))
+                exit()
+
             BROWSER_LOCATION = options.browser_location
             BROWSER = options.browser
             TIMEOUT = options.timeout
             BUILD = options.build
-            # # so long as chrome is always empty for latest, we can't
-            # # validate browser version
-            # if options.browser_location in ['grid', 'sauce']:
-            #     BROWSER_VERSION = options.browser_version
-            #     if BROWSER_VERSION == None:
-            #         raise Exception("'grid' and 'sauce' values for --browser-location "
-            #             "require the --browser-version option.")
-            if options.browser_location in ['grid', 'remote']:
-                REMOTE_ADDRESS = options.grid_address or options.remote_address
-                REMOTE_PORT = options.grid_port or options.remote_port
-                if not REMOTE_ADDRESS:
-                    raise Exception("'grid' and 'remote' values for --browser-location "
-                        "require --grid-address or --remote-address, respectively.")
-            if options.browser_location == 'sauce':
+            OS = options.os
+
+            # local
+            if BROWSER_LOCATION == 'local':
+                self._check_validity(BROWSER, valid_browsers_for_local)
+
+            # sauce
+            elif BROWSER_LOCATION == 'sauce':
                 SAUCE_USERNAME = options.sauce_username
                 SAUCE_APIKEY = options.sauce_apikey
                 if not SAUCE_USERNAME or not SAUCE_APIKEY:
                     raise Exception("'sauce' value for --browser-location "
-                        "requires --sauce-username and --sauce-apikey.")
-            if options.browser_location in ['grid', 'sauce']:
-                OS = options.os
+                                    "requires --sauce-username and --sauce-apikey.")
+                self._check_validity(BROWSER, valid_browsers_for_sauce)
                 if not OS:
-                    raise Exception("'grid' and 'sauce' values for --browser-location " +
-                        "require the --os option.")
+                    raise Exception(
+                        "'sauce' value for --browser-location requires the --os option.")
+                self._check_validity(OS, valid_oses_for_sauce, flag="--os")
+
+            # remote
+            elif BROWSER_LOCATION == 'remote':
+                REMOTE_PORT = options.remote_port
+                REMOTE_ADDRESS = options.remote_address
+                self._check_validity(BROWSER, valid_browsers_for_remote)
+                if not REMOTE_ADDRESS:
+                    raise Exception(
+                        "'remote' value for --browser-location requires --remote-address.")
+
+            # grid
+            elif BROWSER_LOCATION == 'grid':
+                REMOTE_PORT = options.grid_port
+                REMOTE_ADDRESS = options.grid_address
+                self._check_validity(BROWSER, valid_browsers_for_remote)
+                if not REMOTE_ADDRESS:
+                    raise Exception(
+                        "'grid' value for --browser-location requires --grid-address.")
+                if not OS:
+                    raise Exception(
+                        "'grid' value for --browser-location requires the --os option.")
+                # XXX validate OS once grid API can answer the question which it supports
 
 
     # def finalize(self, result):
