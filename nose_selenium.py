@@ -32,7 +32,7 @@ class NoseSelenium(Plugin):
     def help(self):
         pass
 
-    def _stingify_options(self, list):
+    def _stringify_options(self, list):
         string = ", ".join(list)
         return "[" + string + "]"
 
@@ -43,15 +43,15 @@ class NoseSelenium(Plugin):
         parser.add_option('--browser-location',
                           action='store',
                           choices=valid_location_options,
-                          default=env.get('SELENIUM_BROWSER_LOCATION', ['local']),
+                          default=env.get('SELENIUM_BROWSER_LOCATION', 'local'),
                           dest='browser_location',
                           help="Run the browser in this location (default %default, options " +
-                                self._stingify_options(valid_location_options) +
-                                "). May be stored in environmental variable SELENIUM_BROWSER_LOCATION."
+                               self._stringify_options(valid_location_options) +
+                               "). May be stored in environmental variable SELENIUM_BROWSER_LOCATION."
         )
         parser.add_option('--browser',
                           action='store',
-                          default=env.get('SELENIUM_BROWSER', ['FIREFOX']),
+                          default=env.get('SELENIUM_BROWSER', 'FIREFOX'),
                           dest='browser',
                           help="Run this type of browser (default %default). " +
                                "run --browser-help for a list of what browsers are available. " +
@@ -63,12 +63,12 @@ class NoseSelenium(Plugin):
                           help="Get a list of what OS, BROWSER, and BROWSER_VERSION combinations are available."
         )
         parser.add_option('--build',
-                         action='store',
-                         dest='build',
-                         default=None,
-                         metavar='str',
-                         help='build identifier (for continuous integration). ' +
-                            'Only used for sauce.'
+                          action='store',
+                          dest='build',
+                          default=None,
+                          metavar='str',
+                          help='build identifier (for continuous integration). ' +
+                               'Only used for sauce.'
         )
         parser.add_option('--browser-version',
                           action='store',
@@ -86,27 +86,27 @@ class NoseSelenium(Plugin):
                                "(default: %default, required for grid or sauce)"
         )
         parser.add_option('--grid-address',
-                         action='store',
-                         dest='grid_address',
-                         default=env.get('SELENIUM_GRID_ADDRESS', []),
-                         metavar='str',
-                         help='host that selenium grid is listening on. ' +
-                              '(default: %default) May be stored in environmental ' +
-                              'variable SELENIUM_GRID_ADDRESS.'
+                          action='store',
+                          dest='grid_address',
+                          default=env.get('SELENIUM_GRID_ADDRESS', ''),
+                          metavar='str',
+                          help='host that selenium grid is listening on. ' +
+                               '(default: %default) May be stored in environmental ' +
+                               'variable SELENIUM_GRID_ADDRESS.'
         )
         parser.add_option('--grid-port',
-                         action='store',
-                         dest='grid_port',
-                         type='int',
-                         default=4444,
-                         metavar='num',
-                         help='port that selenium grid is listening on. ' +
-                              '(default: %default)'
+                          action='store',
+                          dest='grid_port',
+                          type='int',
+                          default=4444,
+                          metavar='num',
+                          help='port that selenium grid is listening on. ' +
+                               '(default: %default)'
         )
         parser.add_option('--remote-address',
                           action='store',
                           dest='remote_address',
-                          default=env.get('REMOTE_SELENIUM_ADDRESS', []),
+                          default=env.get('REMOTE_SELENIUM_ADDRESS', ''),
                           metavar='str',
                           help='host that remote selenium server is listening on. ' +
                                'May be stored in environmental variable REMOTE_SELENIUM_ADDRESS.'
@@ -121,28 +121,28 @@ class NoseSelenium(Plugin):
                                '(default: %default)'
         )
         parser.add_option('--timeout',
-                         action='store',
-                         type='int',
-                         default=60,
-                         metavar='num',
-                         help='timeout (in seconds) for page loads, etc. ' +
-                              '(default: %default)'
+                          action='store',
+                          type='int',
+                          default=60,
+                          metavar='num',
+                          help='timeout (in seconds) for page loads, etc. ' +
+                               '(default: %default)'
         )
         parser.add_option('--sauce-username',
-                         action='store',
-                         default=env.get('SAUCE_USERNAME', []),
-                         dest='sauce_username',
-                         metavar='str',
-                         help='username for sauce labs account. ' +
-                              'May be stored in environmental variable SAUCE_USERNAME.'
+                          action='store',
+                          default=env.get('SAUCE_USERNAME', []),
+                          dest='sauce_username',
+                          metavar='str',
+                          help='username for sauce labs account. ' +
+                               'May be stored in environmental variable SAUCE_USERNAME.'
         )
         parser.add_option('--sauce-apikey',
-                         action='store',
-                         default=env.get('SAUCE_APIKEY', []),
-                         dest='sauce_apikey',
-                         metavar='str',
-                         help='API Key for sauce labs account. ' +
-                              'May be stored in environmental variable SAUCE_APIKEY.'
+                          action='store',
+                          default=env.get('SAUCE_APIKEY', []),
+                          dest='sauce_apikey',
+                          metavar='str',
+                          help='API Key for sauce labs account. ' +
+                               'May be stored in environmental variable SAUCE_APIKEY.'
         )
 
     def _check_validity(self, item, list, flag="--browser"):
@@ -266,11 +266,11 @@ class NoseSelenium(Plugin):
                 if not OS:
                     raise TypeError(
                         "'grid' value for --browser-location requires the --os option.")
-                # XXX validate OS once grid API can answer the question which it supports
+#               # XXX validate OS once grid API can answer the question which it supports
 
 
-    # def finalize(self, result):
-    #     super(NoseSelenium, self).finalize(result)
+#    def finalize(self, result):
+#        super(NoseSelenium, self).finalize(result)
 
 
 def build_webdriver(name="", tags=[], public=False):
@@ -338,7 +338,9 @@ def build_webdriver(name="", tags=[], public=False):
         }
         executor = 'http://%s:%s@ondemand.saucelabs.com:80/wd/hub' % (SAUCE_USERNAME, SAUCE_APIKEY)
         wd = webdriver.Remote(command_executor=executor,
-                         desired_capabilities=capabilities)
+                              desired_capabilities=capabilities)
+    else:
+        raise TypeError("browser location %s not found" % BROWSER_LOCATION)
 
     wd.implicitly_wait(TIMEOUT * 1000)  # translate sec to ms
     # sometimes what goes out != what goes in, so log it

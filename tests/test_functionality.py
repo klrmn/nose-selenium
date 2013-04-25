@@ -31,15 +31,23 @@ class FunctionalityBase(NoseSeleniumBase):
 #### into a public repository and/or not all environments have a
 #### GUI to run browsers in.
 
+
 @skipUnless('FIREFOX_IS_INSTALLED' in os.environ,
             "set FIREFOX_IS_INSTALLED environment variable to run this test")
+class TestDefaults(FunctionalityBase):
+    pass
+
+
+@skipUnless('CHROME_IS_INSTALLED' in os.environ,
+            "set CHROME_IS_INSTALLED environment variable to run this test")
 class TestLocalFirefox(FunctionalityBase):
     """This test will only run if FIREFOX_IS_INSTALLED is set in the
     testrunner's env."""
     args = [
         '--browser-location=local',
-        '--browser=FIREFOX',
+        '--browser=CHROME',
     ]
+
 
 @skipUnless('REMOTE_SELENIUM_ADDRESS' in os.environ,
             "set REMOTE_SELENIUM_ADDRESS environment variable to run this test")
@@ -51,6 +59,7 @@ class TestRemoteWindowsFirefox(FunctionalityBase):
         '--browser=FIREFOX',
     ]
     env = os.environ
+
 
 @skipUnless(
     'SAUCE_USERNAME' in os.environ and 'SAUCE_APIKEY' in os.environ,
