@@ -1,14 +1,17 @@
 import os
 import requests
+import time
 from json import dumps, loads
 from nose.plugins import Plugin
 from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
 from unittest2 import TestCase
 from exceptions import TypeError #  , Exception
 #from urllib2 import URLError
 
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 # storing these at module level so they can be imported into scripts
@@ -22,6 +25,7 @@ REMOTE_PORT = None
 TIMEOUT = None
 SAUCE_USERNAME = None
 SAUCE_APIKEY = None
+SAVED_FILES_PATH = None
 
 class NoseSelenium(Plugin):
 
@@ -144,6 +148,14 @@ class NoseSelenium(Plugin):
                           help='API Key for sauce labs account. ' +
                                'May be stored in environmental variable SAUCE_APIKEY.'
         )
+        parser.add_option('--saved-files-storage',
+                          action='store',
+                          default=env.get('SAVED_FILES_PATH', ""),
+                          dest='saved_files_storage',
+                          metavar='PATH',
+                          help='Full path to place to store screenshots and html dumps. ' +
+                               'May be stored in environmental variable SAVED_FILES_PATH.'
+        )
 
     def _check_validity(self, item, list, flag="--browser"):
         if item not in list:
@@ -191,6 +203,8 @@ class NoseSelenium(Plugin):
         global TIMEOUT
         global SAUCE_USERNAME
         global SAUCE_APIKEY
+        global SAVED_FILES_PATH
+
 
         Plugin.configure(self, options, conf)
         if self.enabled:
@@ -226,6 +240,7 @@ class NoseSelenium(Plugin):
             TIMEOUT = options.timeout
             BUILD = options.build
             OS = options.os
+            SAVED_FILES_PATH = options.saved_files_storage
 
             # local
             if BROWSER_LOCATION == 'local':
@@ -272,6 +287,43 @@ class NoseSelenium(Plugin):
 #    def finalize(self, result):
 #        super(NoseSelenium, self).finalize(result)
 
+class ScreenshotOnExceptionWebDriver(webdriver.Remote):
+
+
+    def __init__(self, command_executor,
+                 desired_capabilities=None, browser_profile=None, proxy=None):
+        super(ScreenshotOnExceptionWebDriver, self).__init__(
+                command_executor=command_executor,
+                desired_capabilities=desired_capabilities,
+                browser_profile=browser_profile,
+                proxy=proxy
+            )
+        global SAVED_FILES_PATH
+        if SAVED_FILES_PATH:
+            os.system("mkdir -p %s" % SAVED_FILES_PATH)
+
+    def execute(self, driver_command, params=None):
+        try:
+            return super(ScreenshotOnExceptionWebDriver,
+                         self).execute(driver_command, params=params)
+        except WebDriverException:
+            global SAVED_FILES_PATH
+            if SAVED_FILES_PATH:
+                timestamp = repr(time.time()).replace('.', '')
+                # save a screenshot
+                screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
+                super(ScreenshotOnExceptionWebDriver,
+                      self).get_screenshot_as_file(screenshot_filename)
+                logger.error("Screenshot saved to %s" % screenshot_filename)
+                # save the html
+                html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+                html = super(ScreenshotOnExceptionWebDriver,self).page_source
+                outfile = open(html_filename, 'w')
+                outfile.write(html.encode('utf8', 'ignore'))
+                outfile.close()
+                logger.error("HTML saved to %s" % html_filename)
+            raise
+
 
 def build_webdriver(name="", tags=[], public=False):
     """Create and return the desired WebDriver instance."""
@@ -303,7 +355,7 @@ def build_webdriver(name="", tags=[], public=False):
         capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
         # try:
-        wd = webdriver.Remote(command_executor=executor,
+        wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
                               desired_capabilities=capabilities)
         # except URLError:
         #     # print(" caught URLError ",)
@@ -317,7 +369,7 @@ def build_webdriver(name="", tags=[], public=False):
         capabilities['platform'] = OS.upper()
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
         # try:
-        wd = webdriver.Remote(command_executor=executor,
+        wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
                               desired_capabilities=capabilities)
         # except URLError:
         #     # print(" caught URLError ",)
@@ -337,12 +389,12 @@ def build_webdriver(name="", tags=[], public=False):
             'version': BROWSER_VERSION,
         }
         executor = 'http://%s:%s@ondemand.saucelabs.com:80/wd/hub' % (SAUCE_USERNAME, SAUCE_APIKEY)
-        wd = webdriver.Remote(command_executor=executor,
+        wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
                               desired_capabilities=capabilities)
     else:
         raise TypeError("browser location %s not found" % BROWSER_LOCATION)
 
-    wd.implicitly_wait(TIMEOUT * 1000)  # translate sec to ms
+    wd.implicitly_wait(TIMEOUT)
     # sometimes what goes out != what goes in, so log it
     logger.info("actual capabilities: %s" % wd.capabilities)
     return wd

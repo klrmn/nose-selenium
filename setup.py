@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup(
     name='nose-selenium',
-    version='0.02',
+    version='0.03',
     author='Leah Klearman',
     author_email = 'lklrmn@gmail.com',
     description = 'Control the WebDriver instance in your scripts with command-line options',

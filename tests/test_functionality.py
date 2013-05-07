@@ -6,6 +6,7 @@ from nose_selenium import SeleniumTestCase
 import logging
 logger = logging.getLogger(__name__)
 
+
 class FunctionalityBase(NoseSeleniumBase):
 
     def makeSuite(self):
@@ -114,3 +115,33 @@ class TestSauceLinuxOpera(FunctionalityBase):
 #     @property
 #     def expected_error(self):
 #         return "Error connecting to selenium grid server."
+
+
+@skipUnless('REMOTE_SELENIUM_ADDRESS' in os.environ,
+            "set REMOTE_SELENIUM_ADDRESS environment variable to run this test")
+class SeleniumErrorCatching(NoseSeleniumBase):
+    args = [
+        '--browser-location=remote',
+        '--saved-files-storage=/tmp/selenium_files'
+    ]
+    env = os.environ
+
+    def makeSuite(self):
+        class TC(SeleniumTestCase):
+
+            def runTest(self):
+                self.wd.get("http://google.com")
+                self.wd.find_element_by_css_selector("#this-does-not-exist").click()
+                self.assertEqual(self.wd.title, "Google")
+
+        return TestSuite([TC()])
+
+    def test_browser_works(self):
+        for line in self.output:
+            line = line.rstrip()
+
+        # 3 kudos for whomever can tell me how to test the logging output
+        # for "Screenshot saved to /tmp/selenium_files/1367965901247792.png"
+        # and "HTML saved to /tmp/selenium_files/1367965901247792.html"
+        self.assertTrue('NoSuchElementException' in self.output)
+        self.assertTrue('Ran 1 test' in self.output)
