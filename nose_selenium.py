@@ -5,6 +5,7 @@ from json import dumps, loads
 from nose.plugins import Plugin
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.remote.command import Command
 from unittest2 import TestCase
 from exceptions import TypeError #  , Exception
 #from urllib2 import URLError
@@ -303,26 +304,35 @@ class ScreenshotOnExceptionWebDriver(webdriver.Remote):
             os.system("mkdir -p %s" % SAVED_FILES_PATH)
 
     def execute(self, driver_command, params=None):
-        try:
+        if driver_command not in [
+            Command.SCREENSHOT,
+            Command.GET_PAGE_SOURCE,
+            Command.GET_CURRENT_URL
+        ]:
+            try:
+                return super(ScreenshotOnExceptionWebDriver,
+                             self).execute(driver_command, params=params)
+            except WebDriverException:
+                global SAVED_FILES_PATH
+                if SAVED_FILES_PATH:
+                    timestamp = repr(time.time()).replace('.', '')
+                    # save a screenshot
+                    screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
+                    self.get_screenshot_as_file(screenshot_filename)
+                    logger.error("Screenshot saved to %s" % screenshot_filename)
+                    # save the html
+                    html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+                    html = self.page_source
+                    outfile = open(html_filename, 'w')
+                    outfile.write(html.encode('utf8', 'ignore'))
+                    outfile.close()
+                    logger.error("HTML saved to %s" % html_filename)
+                    logger.error("Page URL: %s" % self.get_current_url)
+                raise
+        else:
             return super(ScreenshotOnExceptionWebDriver,
-                         self).execute(driver_command, params=params)
-        except WebDriverException:
-            global SAVED_FILES_PATH
-            if SAVED_FILES_PATH:
-                timestamp = repr(time.time()).replace('.', '')
-                # save a screenshot
-                screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
-                super(ScreenshotOnExceptionWebDriver,
-                      self).get_screenshot_as_file(screenshot_filename)
-                logger.error("Screenshot saved to %s" % screenshot_filename)
-                # save the html
-                html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
-                html = super(ScreenshotOnExceptionWebDriver,self).page_source
-                outfile = open(html_filename, 'w')
-                outfile.write(html.encode('utf8', 'ignore'))
-                outfile.close()
-                logger.error("HTML saved to %s" % html_filename)
-            raise
+                             self).execute(driver_command, params=params)
+
 
 
 def build_webdriver(name="", tags=[], public=False):
