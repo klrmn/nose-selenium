@@ -113,6 +113,13 @@ opened on SauceLabs.
         wd.halt()
 
 
+Backwards Compatibility
+=======================
+
+As this code is in 'alpha' I will attempt but not promise backwards compatibility.
+Please leave me a note if you're using this plugin, as I am more likely to break
+backwards compatibility if I think I'm the only one using it.
+
 Bugs and Feature Requests
 =========================
 

@@ -1,4 +1,5 @@
 from nose.plugins import PluginTester
+from nose.plugins.logcapture import LogCapture
 from unittest2 import TestCase, TestSuite
 from nose_selenium import NoseSelenium
 from exceptions import TypeError
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class NoseSeleniumBase(PluginTester, TestCase):
     activate = '--with-nose-selenium' # enables the plugin
-    plugins = [NoseSelenium()]
+    plugins = [NoseSelenium(), LogCapture()]
 
     def makeSuite(self):
         class TC(TestCase):
