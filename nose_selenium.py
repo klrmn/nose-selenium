@@ -11,8 +11,8 @@ from exceptions import TypeError #  , Exception
 #from urllib2 import URLError
 
 import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('nose.plugins.nose-selenium')
+logger.setLevel(level=logging.DEBUG)
 
 
 # storing these at module level so they can be imported into scripts
@@ -205,6 +205,7 @@ class NoseSelenium(Plugin):
         global SAUCE_USERNAME
         global SAUCE_APIKEY
         global SAVED_FILES_PATH
+        self.logger = logger
 
 
         Plugin.configure(self, options, conf)
@@ -284,54 +285,118 @@ class NoseSelenium(Plugin):
                         "'grid' value for --browser-location requires the --os option.")
 #               # XXX validate OS once grid API can answer the question which it supports
 
+    def _addNonPass(self, test, err):
+        # trying to figure out how to get the stuff to output
+        test.logger.error(err)  # this isn't being printed, and i don't know why
+        self.logger.error(err)  # this isn't being printed, and i don't know why
+        logger.error(err)  # this isn't being printed, and i don't know why
+        if err[1]:
+            timestamp = repr(time.time()).replace('.', '')
+            screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
+            test.wd.get_screenshot_as_file(screenshot_filename)
+            test.logger.error("ASSERT: Screenshot saved to %s" % screenshot_filename)
+            self.logger.error("ASSERT: Screenshot saved to %s" % screenshot_filename)
+            logger.error("ASSERT: Screenshot saved to %s" % screenshot_filename)
+            html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+            html = test.page_source
+            outfile = open(html_filename, 'w')
+            outfile.write(html.encode('utf8', 'ignore'))
+            outfile.close()
+            test.logger.error("HTML saved to %s" % html_filename)
+            self.logger.error("HTML saved to %s" % html_filename)
+            logger.error("HTML saved to %s" % html_filename)
+            test.logger.error("Page URL: %s" % test.wd.current_url)
+            self.logger.error("Page URL: %s" % test.wd.current_url)
+            logger.error("Page URL: %s" % test.wd.current_url)
+
+
+    def addError(self, test, err):
+        self._addNonPass(test, err)
+
+    def addFailure(self, test, err):
+        self._addNonPass(test, err)
 
 #    def finalize(self, result):
 #        super(NoseSelenium, self).finalize(result)
 
-class ScreenshotOnExceptionWebDriver(webdriver.Remote):
+# class TakeScreenshotOnTestFailureOrError():
+#
+#     def __init__(self, webdriver, test=None):
+#         self.wd = webdriver
+#         self.test = test
+#
+#     def __enter__(self):
+#         pass
+#
+#     def __exit__(self, exec_type, value, tb):
+#         """i don't care what kind of exception it is, if there is one,
+#         i want a screenshot."""
+#         global SAVED_FILES_PATH
+#         logger.debug(value)
+#         if value:
+#             timestamp = repr(time.time()).replace('.', '')
+#             screenshot_filename = nose_selenium.SAVED_FILES_PATH + "/" + timestamp + ".png"
+#             self.wd.get_screenshot_as_file(screenshot_filename)
+#             html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+#             html = self.page_source
+#             outfile = open(html_filename, 'w')
+#             outfile.write(html.encode('utf8', 'ignore'))
+#             outfile.close()
+#
+#             if self.test and self.test.has_attribute(logger):
+#                 error_logger = self.test.logger
+#             else:
+#                 error_logger = logger
+#
+#             error_logger.error("ASSERT: Screenshot saved to %s" % screenshot_filename)
+#             error_logger.logger.error("HTML saved to %s" % html_filename)
+#             error_logger.logger.error("Page URL: %s" % self.wd.current_url)
 
 
-    def __init__(self, command_executor,
-                 desired_capabilities=None, browser_profile=None, proxy=None):
-        super(ScreenshotOnExceptionWebDriver, self).__init__(
-                command_executor=command_executor,
-                desired_capabilities=desired_capabilities,
-                browser_profile=browser_profile,
-                proxy=proxy
-            )
-        global SAVED_FILES_PATH
-        if SAVED_FILES_PATH:
-            os.system("mkdir -p %s" % SAVED_FILES_PATH)
-
-    def execute(self, driver_command, params=None):
-        if driver_command not in [
-            Command.SCREENSHOT,
-            Command.GET_PAGE_SOURCE,
-            Command.GET_CURRENT_URL
-        ]:
-            try:
-                return super(ScreenshotOnExceptionWebDriver,
-                             self).execute(driver_command, params=params)
-            except WebDriverException:
-                global SAVED_FILES_PATH
-                if SAVED_FILES_PATH:
-                    timestamp = repr(time.time()).replace('.', '')
-                    # save a screenshot
-                    screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
-                    self.get_screenshot_as_file(screenshot_filename)
-                    logger.error("Screenshot saved to %s" % screenshot_filename)
-                    # save the html
-                    html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
-                    html = self.page_source
-                    outfile = open(html_filename, 'w')
-                    outfile.write(html.encode('utf8', 'ignore'))
-                    outfile.close()
-                    logger.error("HTML saved to %s" % html_filename)
-                    logger.error("Page URL: %s" % self.current_url)
-                raise
-        else:
-            return super(ScreenshotOnExceptionWebDriver,
-                             self).execute(driver_command, params=params)
+# class ScreenshotOnExceptionWebDriver(webdriver.Remote):
+#
+#
+#     def __init__(self, command_executor,
+#                  desired_capabilities=None, browser_profile=None, proxy=None):
+#         super(ScreenshotOnExceptionWebDriver, self).__init__(
+#                 command_executor=command_executor,
+#                 desired_capabilities=desired_capabilities,
+#                 browser_profile=browser_profile,
+#                 proxy=proxy
+#             )
+#         global SAVED_FILES_PATH
+#         if SAVED_FILES_PATH:
+#             os.system("mkdir -p %s" % SAVED_FILES_PATH)
+#
+#     def execute(self, driver_command, params=None):
+#         if driver_command not in [
+#             Command.SCREENSHOT,
+#             Command.GET_PAGE_SOURCE,
+#             Command.GET_CURRENT_URL
+#         ]:
+#             try:
+#                 return super(ScreenshotOnExceptionWebDriver,
+#                              self).execute(driver_command, params=params)
+#             except WebDriverException:
+#                 global SAVED_FILES_PATH
+#                 if SAVED_FILES_PATH:
+#                     timestamp = repr(time.time()).replace('.', '')
+#                     # save a screenshot
+#                     screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
+#                     self.get_screenshot_as_file(screenshot_filename)
+#                     logger.error("Screenshot saved to %s" % screenshot_filename)
+#                     # save the html
+#                     html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+#                     html = self.page_source
+#                     outfile = open(html_filename, 'w')
+#                     outfile.write(html.encode('utf8', 'ignore'))
+#                     outfile.close()
+#                     logger.error("HTML saved to %s" % html_filename)
+#                     logger.error("Page URL: %s" % self.current_url)
+#                 raise
+#         else:
+#             return super(ScreenshotOnExceptionWebDriver,
+#                              self).execute(driver_command, params=params)
 
 
 
@@ -365,7 +430,7 @@ def build_webdriver(name="", tags=[], public=False):
         capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
         # try:
-        wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
+        wd = webdriver.Remote(command_executor=executor,
                               desired_capabilities=capabilities)
         # except URLError:
         #     # print(" caught URLError ",)
@@ -379,7 +444,7 @@ def build_webdriver(name="", tags=[], public=False):
         capabilities['platform'] = OS.upper()
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
         # try:
-        wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
+        wd = webdriver.Remote(command_executor=executor,
                               desired_capabilities=capabilities)
         # except URLError:
         #     # print(" caught URLError ",)
@@ -399,13 +464,15 @@ def build_webdriver(name="", tags=[], public=False):
             'version': BROWSER_VERSION,
         }
         executor = 'http://%s:%s@ondemand.saucelabs.com:80/wd/hub' % (SAUCE_USERNAME, SAUCE_APIKEY)
-        wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
+        wd = webdriver.Remote(command_executor=executor,
                               desired_capabilities=capabilities)
     else:
         raise TypeError("browser location %s not found" % BROWSER_LOCATION)
 
     wd.implicitly_wait(TIMEOUT)
     # sometimes what goes out != what goes in, so log it
+    # this is being printed out 17 times per test!?!
+    # but it's being outside the test cases
     logger.info("actual capabilities: %s" % wd.capabilities)
     return wd
 

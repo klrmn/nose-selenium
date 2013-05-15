@@ -122,7 +122,7 @@ class TestSauceLinuxOpera(FunctionalityBase):
 #         return "Error connecting to selenium grid server."
 
 
-LOCALHOST = '192.168.5.129'
+LOCALHOST = 'localhost'
 
 class LiveWebServerSeleniumTestCase(SeleniumTestCase):
 
@@ -140,7 +140,7 @@ class LiveWebServerSeleniumTestCase(SeleniumTestCase):
             "set REMOTE_SELENIUM_ADDRESS environment variable to run this test")
 class SeleniumErrorCatchingBase(NoseSeleniumBase):
     args = [
-        '--browser-location=remote',
+        # '--browser-location=remote',
         '--saved-files-storage=/tmp/selenium_files',
         # i want this to expose the logging in the nose-selenium file, but
         '--nologcapture'  # it actually controls line 159, which doesn't make sense to me
@@ -157,7 +157,7 @@ class SeleniumErrorCatchingBase(NoseSeleniumBase):
 
         for line in self.output:
             line = line.rstrip()
-            logger.debug(line)
+            logger.debug("OUTPUT: " + line)
 
         # 3 kudos for whomever can tell me how to test the logging output
         # for "Screenshot saved to /tmp/selenium_files/1367965901247792.png"
@@ -193,7 +193,7 @@ class CatchWaitForError(SeleniumErrorCatchingBase):
             def runTest(self):
                 self.wd.get('http://%s:%s' % (LOCALHOST, self.webserver.port))
                 self.wd.implicitly_wait(0)
-                WebDriverWait(self.wd, 20).until(
+                WebDriverWait(self.wd, 5).until(
                     lambda s: self.wd.find_element_by_css_selector(
                         "#this-does-not-exist"))
 
