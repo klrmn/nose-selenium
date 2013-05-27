@@ -1,8 +1,7 @@
 import os
 from test_configuration import NoseSeleniumBase, ConfigurationErrorBase
 from unittest2 import TestCase, TestSuite, skipUnless
-from nose_selenium import SeleniumTestCase
-from selenium.webdriver.support.ui import WebDriverWait
+from nose_selenium import SeleniumTestCase, ScreenshotOnExceptionWebDriverWait
 from webserver import SimpleWebServer
 
 import logging
@@ -193,7 +192,7 @@ class CatchWaitForError(SeleniumErrorCatchingBase):
             def runTest(self):
                 self.wd.get('http://%s:%s' % (LOCALHOST, self.webserver.port))
                 self.wd.implicitly_wait(0)
-                WebDriverWait(self.wd, 20).until(
+                ScreenshotOnExceptionWebDriverWait(self.wd, 10).until(
                     lambda s: self.wd.find_element_by_css_selector(
                         "#this-does-not-exist"))
 

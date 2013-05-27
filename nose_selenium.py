@@ -1,11 +1,14 @@
 import os
 import requests
 import time
+import inspect
 from json import dumps, loads
 from nose.plugins import Plugin
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.remote.command import Command
+from selenium.webdriver.support.select import Select
+from selenium.webdriver.support.ui import WebDriverWait
 from unittest2 import TestCase
 from exceptions import TypeError #  , Exception
 #from urllib2 import URLError
@@ -288,27 +291,83 @@ class NoseSelenium(Plugin):
 #    def finalize(self, result):
 #        super(NoseSelenium, self).finalize(result)
 
+class ScreenshotOnExceptionWebDriverWait(WebDriverWait):
+    def __init__(self, *args, **kwargs):
+        super(ScreenshotOnExceptionWebDriverWait, self).__init__(*args, **kwargs)
+        global SAVED_FILES_PATH
+        if SAVED_FILES_PATH:
+            os.system("mkdir -p %s" % SAVED_FILES_PATH)
+
+    def until(self, *args, **kwargs):
+        try:
+            return super(
+                ScreenshotOnExceptionWebDriverWait, self).until(
+                *args, **kwargs)
+        except TimeoutException:
+            global SAVED_FILES_PATH
+            if SAVED_FILES_PATH:
+                timestamp = repr(time.time()).replace('.', '')
+                # save a screenshot
+                screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
+                self._driver.get_screenshot_as_file(screenshot_filename)
+                logger.error("Screenshot saved to %s" % screenshot_filename)
+                # save the html
+                html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+                html = self._driver.page_source
+                outfile = open(html_filename, 'w')
+                outfile.write(html.encode('utf8', 'ignore'))
+                outfile.close()
+                logger.error("HTML saved to %s" % html_filename)
+                logger.error("Page URL: %s" % self._driver.current_url)
+            raise
+
+    def until_not(self, *args, **kwargs):
+        try:
+            return super(
+                ScreenshotOnExceptionWebDriverWait, self).until_not(
+                *args, **kwargs)
+        except TimeoutException:
+            global SAVED_FILES_PATH
+            if SAVED_FILES_PATH:
+                timestamp = repr(time.time()).replace('.', '')
+                # save a screenshot
+                screenshot_filename = SAVED_FILES_PATH + "/" + timestamp + ".png"
+                self._driver.get_screenshot_as_file(screenshot_filename)
+                logger.error("Screenshot saved to %s" % screenshot_filename)
+                # save the html
+                html_filename = SAVED_FILES_PATH + "/" + timestamp + ".html"
+                html = self._driver.page_source
+                outfile = open(html_filename, 'w')
+                outfile.write(html.encode('utf8', 'ignore'))
+                outfile.close()
+                logger.error("HTML saved to %s" % html_filename)
+                logger.error("Page URL: %s" % self._driver.current_url)
+            raise
+
+
 class ScreenshotOnExceptionWebDriver(webdriver.Remote):
 
 
-    def __init__(self, command_executor,
-                 desired_capabilities=None, browser_profile=None, proxy=None):
-        super(ScreenshotOnExceptionWebDriver, self).__init__(
-                command_executor=command_executor,
-                desired_capabilities=desired_capabilities,
-                browser_profile=browser_profile,
-                proxy=proxy
-            )
+    def __init__(self, *args, **kwargs):
+        super(ScreenshotOnExceptionWebDriver, self).__init__(*args, **kwargs)
         global SAVED_FILES_PATH
         if SAVED_FILES_PATH:
             os.system("mkdir -p %s" % SAVED_FILES_PATH)
 
     def execute(self, driver_command, params=None):
-        if driver_command not in [
+        curframe = inspect.currentframe()
+        calframe = inspect.getouterframes(curframe)
+        if driver_command in [
             Command.SCREENSHOT,
             Command.GET_PAGE_SOURCE,
             Command.GET_CURRENT_URL
         ]:
+            return super(ScreenshotOnExceptionWebDriver,
+                             self).execute(driver_command, params=params)
+        elif calframe[4][3] in ['until', 'until_not']:
+            return super(ScreenshotOnExceptionWebDriver,
+                             self).execute(driver_command, params=params)
+        else:
             try:
                 return super(ScreenshotOnExceptionWebDriver,
                              self).execute(driver_command, params=params)
@@ -329,9 +388,6 @@ class ScreenshotOnExceptionWebDriver(webdriver.Remote):
                     logger.error("HTML saved to %s" % html_filename)
                     logger.error("Page URL: %s" % self.current_url)
                 raise
-        else:
-            return super(ScreenshotOnExceptionWebDriver,
-                             self).execute(driver_command, params=params)
 
 
 
