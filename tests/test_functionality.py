@@ -28,6 +28,7 @@ class FunctionalityBase(NoseSeleniumBase):
 
         for line in self.output:
             line = line.rstrip()
+            print(line)
 
         self.assertTrue('Ran 1 test' in self.output)
         self.assertTrue('OK' in self.output)
@@ -43,10 +44,18 @@ class TestDefaults(FunctionalityBase):
     pass
 
 
+@skipUnless('FIREFOX_IS_INSTALLED' in os.environ,
+            "set FIREFOX_IS_INSTALLED environment variable to run this test")
+class TestConfigFileLocalFirefox(FunctionalityBase):
+    args = [
+        '--config-file=tests/local_config.conf'
+    ]
+
+
 @skipUnless('CHROME_IS_INSTALLED' in os.environ,
             "set CHROME_IS_INSTALLED environment variable to run this test")
-class TestLocalFirefox(FunctionalityBase):
-    """This test will only run if FIREFOX_IS_INSTALLED is set in the
+class TestLocalChrome(FunctionalityBase):
+    """This test will only run if CHROME_IS_INSTALLED is set in the
     testrunner's env."""
     args = [
         '--browser-location=local',
@@ -65,6 +74,15 @@ class TestRemoteWindowsFirefox(FunctionalityBase):
     ]
     env = os.environ
 
+
+@skipUnless('REMOTE_SELENIUM_ADDRESS' in os.environ,
+            "set REMOTE_SELENIUM_ADDRESS environment variable to run this test")
+class TestConfigFileRemote(FunctionalityBase):
+    """This test will only run if REMOTE_SELENIUM_ADDRESS is set in the
+    testrunner's env."""
+    args = [
+        '--config-file=tests/remote_config.conf'
+    ]
 
 @skipUnless(
     'SAUCE_USERNAME' in os.environ and 'SAUCE_APIKEY' in os.environ,

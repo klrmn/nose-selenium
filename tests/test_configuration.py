@@ -187,6 +187,16 @@ class TestSauceRequiresApikey(ConfigurationErrorBase):
                 "requires --sauce-username and --sauce-apikey.")
 
 
+class TestSauceConfigFileRequiresUsername(ConfigurationErrorBase):
+    args = [
+        '--config-file=tests/invalid_config.conf'
+    ]
+
+    @property
+    def expected_error(self):
+        return ("'sauce' value for --browser-location " +
+                "requires --sauce-username and --sauce-apikey.")
+
 #################### General ##########################
 
 

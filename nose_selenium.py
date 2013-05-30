@@ -11,6 +11,7 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from unittest2 import TestCase
 from exceptions import TypeError #  , Exception
+from ConfigParser import ConfigParser
 #from urllib2 import URLError
 
 import logging
@@ -31,6 +32,64 @@ SAUCE_USERNAME = None
 SAUCE_APIKEY = None
 SAVED_FILES_PATH = None
 
+def setup_selenium_from_config(config):
+    """Start selenium with values from config file, or defaults
+    rather than requiring the command-line options. File must be
+    ConfigParser compliant and have a section called 'SELENIUM'.
+    """
+    global BROWSER_LOCATION
+    global BROWSER
+    global BUILD
+    global BROWSER_VERSION
+    global OS
+    global REMOTE_ADDRESS
+    global REMOTE_PORT
+    global TIMEOUT
+    global SAUCE_USERNAME
+    global SAUCE_APIKEY
+    global SAVED_FILES_PATH
+
+    if config.has_option("SELENIUM", "BROWSER_LOCATION"):
+        BROWSER_LOCATION = config.get("SELENIUM", "BROWSER_LOCATION")
+    else:
+        BROWSER_LOCATION = 'local'
+
+    if config.has_option("SELENIUM", "BROWSER"):
+        BROWSER = config.get("SELENIUM", "BROWSER")
+    else:
+        BROWSER = 'FIREFOX'
+
+    if config.has_option("SELENIUM", "BUILD"):
+        BUILD = config.get("SELENIUM", "BUILD")
+
+    if config.has_option("SELENIUM", "BROWSER_VERSION"):
+        BROWSER_VERSION = config.get("SELENIUM", "BROWSER_VERSION")
+
+    if config.has_option("SELENIUM", "OS"):
+        OS = config.get("SELENIUM", "OS")
+
+    if config.has_option("SELENIUM", "REMOTE_ADDRESS"):
+        REMOTE_ADDRESS = config.get("SELENIUM", "REMOTE_ADDRESS")
+
+    if config.has_option("SELENIUM", "REMOTE_PORT"):
+        REMOTE_PORT = config.get("SELENIUM", "REMOTE_PORT")
+    else:
+        REMOTE_PORT = 4444
+
+    if config.has_option("SELENIUM", "TIMEOUT"):
+        TIMEOUT = config.getfloat("SELENIUM", "TIMEOUT")
+    else:
+        TIMEOUT = 60
+
+    if config.has_option("SELENIUM", "SAUCE_USERNAME"):
+        SAUCE_USERNAME = config.get("SELENIUM", "SAUCE_USERNAME")
+
+    if config.has_option("SELENIUM", "SAUCE_APIKEY"):
+        SAUCE_APIKEY = config.get("SELENIUM", "SAUCE_APIKEY")
+
+    if config.has_option("SELENIUM", "SAVED_FILES_PATH"):
+        SAVED_FILES_PATH = config.get("SELENIUM", "SAVED_FILES_PATH")
+
 class NoseSelenium(Plugin):
 
     name = 'nose-selenium'
@@ -47,6 +106,13 @@ class NoseSelenium(Plugin):
     def options(self, parser, env=os.environ):
 
         Plugin.options(self, parser, env)
+        parser.add_option('--config-file',
+                          action='store',
+                          dest='config_file',
+                          help="Load options from ConfigParser compliant config file. " +
+                               "Values in config file will override values sent on the " +
+                               "command line."
+        )
         valid_location_options = ['local', 'remote', 'grid', 'sauce']
         parser.add_option('--browser-location',
                           action='store',
@@ -196,7 +262,40 @@ class NoseSelenium(Plugin):
         oses = set(entry['os'] for entry in resp)
         return (browsers, oses, combos)
 
-    def configure(self, options, conf):
+    @property
+    def _valid_browsers_for_remote(self):
+        return [attr for attr in dir(webdriver.DesiredCapabilities) if not attr.startswith('__')]
+
+    @property
+    def _valid_browsers_for_local(self):
+        return ['FIREFOX', 'INTERNETEXPLORER', 'CHROME']
+
+    def _browser_help(self):
+        valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
+
+        print("")
+        print("Local Browsers:")
+        print("---------------")
+        print("\n".join(self._valid_browsers_for_local))
+        print("")
+        print("Potential Remote / Grid Browsers:")
+        print("---------------------------------")
+        print("\n".join(self._valid_browsers_for_remote))
+        print("")
+        print("Note: not all browsers available on all grids.")
+        print("")
+        print("Sauce Labs OS - Browser - Browser Version combinations:")
+        print("-------------------------------------------------------")
+        print("\t\t".join(['OS', 'BROWSER', 'BROWSER_VERSION']))
+        print("\n".join(combos))
+        exit(0)
+
+    def ingest_config_file(self, config_file):
+        CONFIG = ConfigParser()
+        CONFIG.read(config_file)
+        setup_selenium_from_config(CONFIG)
+
+    def ingest_options(self, options):
         global BROWSER_LOCATION
         global BROWSER
         global BUILD
@@ -209,53 +308,46 @@ class NoseSelenium(Plugin):
         global SAUCE_APIKEY
         global SAVED_FILES_PATH
 
+        BROWSER_LOCATION = options.browser_location
+        BROWSER = options.browser
+        TIMEOUT = options.timeout
+        BUILD = options.build
+        OS = options.os
+        SAVED_FILES_PATH = options.saved_files_storage
+        SAUCE_USERNAME = options.sauce_username
+        SAUCE_APIKEY = options.sauce_apikey
+        if BROWSER_LOCATION == 'remote':
+            REMOTE_PORT = options.remote_port
+            REMOTE_ADDRESS = options.remote_address
+        elif BROWSER_LOCATION == 'grid':
+            REMOTE_PORT = options.grid_port
+            REMOTE_ADDRESS = options.grid_address
+
+    def configure(self, options, conf):
+
 
         Plugin.configure(self, options, conf)
         if self.enabled:
 
-
-            valid_browsers_for_remote = [attr for attr in dir(webdriver.DesiredCapabilities) if not attr.startswith('__')]
-            valid_browsers_for_local = ['FIREFOX', 'INTERNETEXPLORER', 'CHROME']
-
             # browser-help is a usage call
             if getattr(options, 'browser_help'):
+                self._browser_help()
 
-                valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
+            # get options from command line or config file
+            if options.config_file:
+                self.ingest_config_file(options.config_file)
+            else:
+                self.ingest_options(options)
 
-                print("")
-                print("Local Browsers:")
-                print("---------------")
-                print("\n".join(valid_browsers_for_local))
-                print("")
-                print("Potential Remote / Grid Browsers:")
-                print("---------------------------------")
-                print("\n".join(valid_browsers_for_remote))
-                print("")
-                print("Note: not all browsers available on all grids.")
-                print("")
-                print("Sauce Labs OS - Browser - Browser Version combinations:")
-                print("-------------------------------------------------------")
-                print("\t\t".join(['OS', 'BROWSER', 'BROWSER_VERSION']))
-                print("\n".join(combos))
-                exit(0)
-
-            BROWSER_LOCATION = options.browser_location
-            BROWSER = options.browser
-            TIMEOUT = options.timeout
-            BUILD = options.build
-            OS = options.os
-            SAVED_FILES_PATH = options.saved_files_storage
-
+            ### Validation ###
             # local
             if BROWSER_LOCATION == 'local':
-                self._check_validity(BROWSER, valid_browsers_for_local)
+                self._check_validity(BROWSER, self._valid_browsers_for_local)
 
             # sauce
             elif BROWSER_LOCATION == 'sauce':
                 valid_browsers_for_sauce, valid_oses_for_sauce, combos = self._get_sauce_options()
 
-                SAUCE_USERNAME = options.sauce_username
-                SAUCE_APIKEY = options.sauce_apikey
                 if not SAUCE_USERNAME or not SAUCE_APIKEY:
                     raise TypeError("'sauce' value for --browser-location "
                                     "requires --sauce-username and --sauce-apikey.")
@@ -267,29 +359,23 @@ class NoseSelenium(Plugin):
 
             # remote
             elif BROWSER_LOCATION == 'remote':
-                REMOTE_PORT = options.remote_port
-                REMOTE_ADDRESS = options.remote_address
-                self._check_validity(BROWSER, valid_browsers_for_remote)
+                self._check_validity(BROWSER, self._valid_browsers_for_remote)
                 if not REMOTE_ADDRESS:
                     raise TypeError(
                         "'remote' value for --browser-location requires --remote-address.")
 
             # grid
             elif BROWSER_LOCATION == 'grid':
-                REMOTE_PORT = options.grid_port
-                REMOTE_ADDRESS = options.grid_address
-                self._check_validity(BROWSER, valid_browsers_for_remote)
+                self._check_validity(BROWSER, self._valid_browsers_for_remote)
                 if not REMOTE_ADDRESS:
                     raise TypeError(
                         "'grid' value for --browser-location requires --grid-address.")
                 if not OS:
                     raise TypeError(
                         "'grid' value for --browser-location requires the --os option.")
-#               # XXX validate OS once grid API can answer the question which it supports
+                # XXX validate OS once grid API can answer the question which it supports
 
 
-#    def finalize(self, result):
-#        super(NoseSelenium, self).finalize(result)
 
 class ScreenshotOnExceptionWebDriverWait(WebDriverWait):
     def __init__(self, *args, **kwargs):
@@ -364,7 +450,7 @@ class ScreenshotOnExceptionWebDriver(webdriver.Remote):
         ]:
             return super(ScreenshotOnExceptionWebDriver,
                              self).execute(driver_command, params=params)
-        elif calframe[4][3] in ['until', 'until_not']:
+        elif len(calframe) > 4 and calframe[4][3] in ['until', 'until_not']:
             return super(ScreenshotOnExceptionWebDriver,
                              self).execute(driver_command, params=params)
         else:

@@ -27,6 +27,9 @@ nosetests command line options
     [snip]
       --with-nose-selenium  Enable plugin NoseSelenium: None
                             [NOSE_WITH_NOSE_SELENIUM]
+      --config-file         Load options from ConfigParser compliant config file.
+                            Values in config file will override values sent on the
+                            command line.
       --browser-location=BROWSER_LOCATION
                             Run the browser in this location (default ['local'],
                             options [local, remote, grid, sauce]). May be stored
@@ -61,6 +64,8 @@ nosetests command line options
                             environmental variable SAUCE_USERNAME.
       --sauce-apikey=str    API Key for sauce labs account. May be stored in
                             environmental variable SAUCE_APIKEY.
+      --saved-files-storage Full path to place to store screenshots and html dumps.
+                            May be stored in environmental variable SAVED_FILES_PATH.
 
 Example Commands
 ----------------
@@ -71,10 +76,40 @@ Example Commands
     $ nosetests --with-nose-selenium --browser-location=grid --grid-address=192.168.0.11 --os=linux --browser=CHROME
     $ nosetests --with-nose-selenium --browser-location=remote --remote-address=192.168.0.107 --browser=HTMLUNIT
     $ nosetests --with-nose-selenium --browser-location=sauce --os=windows --browser=INTERNETEXPLORER --sauce-username=<name> --sauce-apikey=<api_key>
+    $ nosetests --with-nose-selenium --config-file=selenium.conf
 
 
 Writing test scripts with nose-selenium
 =======================================
+Loading configuration from a config file
+---------------------------------
+If you use the --config-file flag, the rest of the command-line flags
+will be ignored. The same defaults values for optional keys apply, and
+validation checking will be performed when involked from nosetests.
+
+**Example selenium.conf file**
+
+Not all keys are required for all configurations, read the command-line
+options section above for clues. Where values are provided, they are the
+defaults.
+
+.. code-block:: bash
+
+    [SELENIUM]
+    BROWSER_LOCATION: local
+    BROWSER: FIREFOX
+    BUILD:
+    BROWSER_VERSION:
+    OS:
+    # remote or grid address
+    REMOTE_ADDRESS:
+    # remote or grid port
+    REMOTE_PORT: 4444
+    TIMEOUT: 60
+    SAUCE_USERNAME:
+    SAUCE_APIKEY:
+    SAVED_FILES_PATH:
+
 
 Inheriting from SeleniumTestCase
 --------------------------------
@@ -93,6 +128,17 @@ and closes it in tearDown().
             self.wd.get("http://google.com")
             self.assertEqual(self.wd.title, "Google")
 
+Using ScreenshotOnExceptionWebDriver
+------------------------------------
+ScreenshotOnExceptionWebDriver is designed to take a screenshot, fetch the
+html, and log the url before reporting any WebDriverException. It excludes
+exceptions encountered by WebDriverWait's until() and until_not() methods.
+
+Using ScreenshotOnExceptionWebDriverWait
+----------------------------------------
+If you want screenshots and html to be captured for TimeoutException-s
+raised by WebDriverWait, use ScreenshotOnExceptionWebDriverWait in its
+place.
 
 Using build_webdriver in your test scripts
 ------------------------------------------
@@ -112,7 +158,32 @@ opened on SauceLabs.
         assert wd.title == 'Google'
         wd.halt()
 
+Using setup_selenium_from_config()
+----------------------------------
+If you'd like to use ``ScreenshotOnExceptionWebDriver`` or
+``ScreenshotOnExceptionWebDriverWait`` without using the nose framework,
+you can put its settings in a ConfigParser compliant file with a [SELENIUM]
+section and call ``setup_selenium_from_config`` with a ConfigParser instance which
+has read from this file. This will set up the variables so that
+``build_webdriver`` can read them.
 
+.. code-block:: python
+
+    from nose_selenium import build_webdriver, setup_selenium_from_config
+    from ConfigParser import ConfigParser
+
+    CONFIG = ConfigParser()
+    CONFIG.read('selenium.conf')
+
+    setup_selenium_from_config(CONFIG)
+    wd = build_webdriver()
+
+
+.. note::
+
+    If you use portions of this library without using nose, validity checking
+    will not be performed.
+    
 Backwards Compatibility
 =======================
 
