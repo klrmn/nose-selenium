@@ -312,6 +312,7 @@ class NoseSelenium(Plugin):
         BROWSER = options.browser
         TIMEOUT = options.timeout
         BUILD = options.build
+        BROWSER_VERSION = options.browser_version
         OS = options.os
         SAVED_FILES_PATH = options.saved_files_storage
         SAUCE_USERNAME = options.sauce_username
