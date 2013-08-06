@@ -383,7 +383,8 @@ class ScreenshotOnExceptionWebDriverWait(WebDriverWait):
         super(ScreenshotOnExceptionWebDriverWait, self).__init__(*args, **kwargs)
         global SAVED_FILES_PATH
         if SAVED_FILES_PATH:
-            os.system("mkdir -p %s" % SAVED_FILES_PATH)
+          if not os.path.exists(SAVED_FILES_PATH):
+            os.makedirs(SAVED_FILES_PATH)
 
     def until(self, *args, **kwargs):
         try:
@@ -439,7 +440,8 @@ class ScreenshotOnExceptionWebDriver(webdriver.Remote):
         super(ScreenshotOnExceptionWebDriver, self).__init__(*args, **kwargs)
         global SAVED_FILES_PATH
         if SAVED_FILES_PATH:
-            os.system("mkdir -p %s" % SAVED_FILES_PATH)
+          if not os.path.exists(SAVED_FILES_PATH):
+            os.makedirs(SAVED_FILES_PATH)
 
     def execute(self, driver_command, params=None):
         curframe = inspect.currentframe()
