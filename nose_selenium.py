@@ -31,6 +31,7 @@ TIMEOUT = None
 SAUCE_USERNAME = None
 SAUCE_APIKEY = None
 SAVED_FILES_PATH = None
+CAPABILITIES = None
 
 def setup_selenium_from_config(config):
     """Start selenium with values from config file, or defaults
@@ -48,6 +49,7 @@ def setup_selenium_from_config(config):
     global SAUCE_USERNAME
     global SAUCE_APIKEY
     global SAVED_FILES_PATH
+    global CAPABILITIES
 
     if config.has_option("SELENIUM", "BROWSER_LOCATION"):
         BROWSER_LOCATION = config.get("SELENIUM", "BROWSER_LOCATION")
@@ -89,6 +91,9 @@ def setup_selenium_from_config(config):
 
     if config.has_option("SELENIUM", "SAVED_FILES_PATH"):
         SAVED_FILES_PATH = config.get("SELENIUM", "SAVED_FILES_PATH")
+
+    if config.has_option("SELENIUM", "CAPABILITIES"):
+        CAPABILITIES = config.get("SELENIUM", "CAPABILITIES")
 
 class NoseSelenium(Plugin):
 
@@ -225,6 +230,13 @@ class NoseSelenium(Plugin):
                           metavar='PATH',
                           help='Full path to place to store screenshots and html dumps. ' +
                                'May be stored in environmental variable SAVED_FILES_PATH.'
+        )
+        parser.add_option('--capabilities',
+                          action='store',
+                          default=env.get('CAPABILITIES', ""),
+                          dest='capabilities',
+                          metavar='str',
+                          help='Desired Capabilities for browser.'
         )
 
     def _check_validity(self, item, list, flag="--browser"):
@@ -490,14 +502,19 @@ def build_webdriver(name="", tags=[], public=False):
     global TIMEOUT
     global SAUCE_USERNAME
     global SAUCE_APIKEY
+    global CAPABILITIES
 
     wd = None
 
+    capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
+    if CAPABILITIES:
+        capabilities.update(json.loads(CAPABILITIES))
+
     if BROWSER_LOCATION == 'local':
         if BROWSER == 'FIREFOX':
-            wd = webdriver.Firefox()
+            wd = webdriver.Firefox(desired_capabilities=capabilities)
         elif BROWSER == 'CHROME':
-            wd = webdriver.Chrome()
+            wd = webdriver.Chrome(desired_capabilities=capabilities)
         elif BROWSER == 'INTERNETEXPLORER':
             wd = webdriver.Ie()
         else:
@@ -505,7 +522,6 @@ def build_webdriver(name="", tags=[], public=False):
                 'WebDriver does not have a driver for local %s' % BROWSER)
 
     elif BROWSER_LOCATION == 'remote':
-        capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
         # try:
         wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
@@ -517,7 +533,6 @@ def build_webdriver(name="", tags=[], public=False):
         #         % (REMOTE_ADDRESS, REMOTE_PORT))
 
     elif BROWSER_LOCATION == 'grid':
-        capabilities = getattr(webdriver.DesiredCapabilities, BROWSER.upper())
         capabilities['version'] = BROWSER_VERSION
         capabilities['platform'] = OS.upper()
         executor = 'http://%s:%s/wd/hub' % (REMOTE_ADDRESS, REMOTE_PORT)
@@ -541,6 +556,7 @@ def build_webdriver(name="", tags=[], public=False):
             'browserName': BROWSER,
             'version': BROWSER_VERSION,
         }
+        capabilities.update(json.loads(CAPABILITIES))
         executor = 'http://%s:%s@ondemand.saucelabs.com:80/wd/hub' % (SAUCE_USERNAME, SAUCE_APIKEY)
         wd = ScreenshotOnExceptionWebDriver(command_executor=executor,
                               desired_capabilities=capabilities)
